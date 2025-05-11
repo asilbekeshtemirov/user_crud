@@ -1,27 +1,48 @@
+import * as path from 'node:path';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { ServeStaticModule } from '@nestjs/serve-static';
 import { SequelizeModule } from '@nestjs/sequelize';
-import { Sequelize } from 'sequelize';
 import { UserModule } from './modules';
-import { User } from "./modules"
-
+import { APP_GUARD } from '@nestjs/core';
+import { CheckAuthGuard, CheckRolesGuard } from './guards';
+import { JwtModule } from '@nestjs/jwt';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
-      isGlobal:true
+      isGlobal: true,
     }),
-  SequelizeModule.forRoot({
+
+    ServeStaticModule.forRoot({
+      rootPath: path.join(process.cwd(), 'uploads'),
+      serveRoot: '/uploads',
+    }),
+    SequelizeModule.forRoot({
       dialect: 'postgres',
-      host: process.env.DB_HOST ,
+      host: process.env.DB_HOST,
       port: process.env.DB_PORT ? parseInt(process.env.DB_PORT) : 5432,
       username: process.env.DB_USER,
       password: process.env.DB_PASSWORD,
       database: process.env.DB_NAME,
-      synchronize: true,
+      logging: console.log,
+      sync: {
+        alter: true,
+        // force: true
+      },
       autoLoadModels: true,
     }),
-  UserModule
+    UserModule,
+  ],
+  providers: [
+    {
+      provide: APP_GUARD,
+      useClass: CheckAuthGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: CheckRolesGuard,
+    },
   ],
 })
 export class AppModule {}
